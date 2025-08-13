@@ -2,22 +2,24 @@ package dev.bakr.library_manager.service;
 
 import dev.bakr.library_manager.exceptions.AccessDeniedException;
 import dev.bakr.library_manager.exceptions.ExistsException;
+import dev.bakr.library_manager.exceptions.InvalidException;
 import dev.bakr.library_manager.exceptions.NotFoundException;
 import dev.bakr.library_manager.mappers.BookMapper;
 import dev.bakr.library_manager.model.Book;
 import dev.bakr.library_manager.model.Reader;
 import dev.bakr.library_manager.model.ReaderBook;
+import dev.bakr.library_manager.model.ReaderBookId;
 import dev.bakr.library_manager.repository.BookRepository;
 import dev.bakr.library_manager.repository.ReaderBookRepository;
 import dev.bakr.library_manager.repository.ReaderRepository;
 import dev.bakr.library_manager.requestDtos.BookDtoRequest;
+import dev.bakr.library_manager.requestDtos.ReaderBookUpdateDto;
 import dev.bakr.library_manager.responses.ReaderBookDto;
 import dev.bakr.library_manager.utils.SecurityCheck;
+import dev.bakr.library_manager.utils.StatusValidator;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 
 @Service
@@ -45,46 +47,7 @@ public class BookService {
         this.bookMapper = bookMapper;
     }
 
-    public List<ReaderBookDto> getBooks(Long readerId) {
-        Long authenticatedReaderId = SecurityCheck.getAuthenticatedUserId();
-
-        if (!authenticatedReaderId.equals(readerId)) {
-            throw new AccessDeniedException("You cannot access this resource.");
-        }
-
-        Reader neededReader = readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
-                "Reader not found! With id: " + readerId));
-
-        List<ReaderBookDto> readingCopies = new ArrayList<>();
-        List<ReaderBook> allReaderBooks = neededReader.getReaderBooks();
-
-        if (!allReaderBooks.isEmpty()) {
-            for (ReaderBook readerBook : allReaderBooks) {
-                var theBookItself = readerBook.getBook();
-                var readingCopy = new ReaderBookDto(theBookItself.getId(),
-                                                    theBookItself.getTitle(),
-                                                    theBookItself.getSubtitle(),
-                                                    theBookItself.getDescription(),
-                                                    theBookItself.getIsbn(),
-                                                    theBookItself.getPagesCount(),
-                                                    theBookItself.getImageLink(),
-                                                    theBookItself.getPrintingType(),
-                                                    theBookItself.getPublishingYear(),
-                                                    theBookItself.getAuthor().getFullName(),
-                                                    theBookItself.getCategory().getName(),
-                                                    theBookItself.getPublisher().getName(),
-                                                    readerBook.getStatus(),
-                                                    readerBook.getAddingDate(),
-                                                    readerBook.getLeftOffPage()
-                );
-                readingCopies.add(readingCopy);
-            }
-        }
-
-        return readingCopies;
-    }
-
-    public ReaderBookDto getBook(Long readerId, Long bookId) {
+    public List<ReaderBookDto> getReaderBooks(Long readerId) {
         Long authenticatedReaderId = SecurityCheck.getAuthenticatedUserId();
 
         if (!authenticatedReaderId.equals(readerId)) {
@@ -94,14 +57,43 @@ public class BookService {
         Reader reader = readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
                 "Reader not found! With id: " + readerId));
 
-        // I have to use either hashmap or hashset here to improve the big o, because i want a simple lookup
-        var readerBook = reader.getReaderBooks().stream()
-                .filter(book -> Objects.equals(book.getBook().getId(), bookId))
-                .findFirst().orElseThrow(() -> new NotFoundException(
-                        "The reader with ID " + readerId + " doesn't have the book with ID " + bookId
-                ));
+        return reader.getReaderBooks().stream().map(readerBook -> {
+            var theBookItself = readerBook.getBook();
+            return new ReaderBookDto(theBookItself.getId(),
+                                     theBookItself.getTitle(),
+                                     theBookItself.getSubtitle(),
+                                     theBookItself.getDescription(),
+                                     theBookItself.getIsbn(),
+                                     theBookItself.getPagesCount(),
+                                     theBookItself.getImageLink(),
+                                     theBookItself.getPrintingType(),
+                                     theBookItself.getPublishingYear(),
+                                     theBookItself.getAuthor().getFullName(),
+                                     theBookItself.getCategory().getName(),
+                                     theBookItself.getPublisher().getName(),
+                                     readerBook.getStatus(),
+                                     readerBook.getAddingDate(),
+                                     readerBook.getLeftOffPage()
+            );
+        }).toList();
+    }
 
-        var theBookItself = readerBook.getBook();
+    public ReaderBookDto getReaderBook(Long readerId, Long bookId) {
+        Long authenticatedReaderId = SecurityCheck.getAuthenticatedUserId();
+
+        if (!authenticatedReaderId.equals(readerId)) {
+            throw new AccessDeniedException("You cannot access this resource.");
+        }
+
+        Reader reader = readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
+                "Reader not found! With id: " + readerId));
+
+        ReaderBookId readerBookToGetId = ReaderBook.createCompositeKey(reader.getId(), bookId);
+        var readerBookToGet = readerBookRepository.findById(readerBookToGetId).orElseThrow(() -> new NotFoundException(
+                "You don't have this book in your collection!"
+        ));
+
+        var theBookItself = readerBookToGet.getBook();
 
         return new ReaderBookDto(theBookItself.getId(),
                                  theBookItself.getTitle(),
@@ -115,13 +107,13 @@ public class BookService {
                                  theBookItself.getAuthor().getFullName(),
                                  theBookItself.getCategory().getName(),
                                  theBookItself.getPublisher().getName(),
-                                 readerBook.getStatus(),
-                                 readerBook.getAddingDate(),
-                                 readerBook.getLeftOffPage()
+                                 readerBookToGet.getStatus(),
+                                 readerBookToGet.getAddingDate(),
+                                 readerBookToGet.getLeftOffPage()
         );
     }
 
-    public String addBook(Long readerId, BookDtoRequest bookDtoRequest) {
+    public String addReaderBook(Long readerId, BookDtoRequest bookDtoRequest) {
         Long authenticatedReaderId = SecurityCheck.getAuthenticatedUserId();
 
         if (!authenticatedReaderId.equals(readerId)) {
@@ -129,11 +121,12 @@ public class BookService {
         }
 
         // Still check to avoid NullPointerException if reader was deleted after token issued (Always prefer robustness over optimism)
-        Reader neededReader = readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
+        Reader reader = readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
                 "Reader not found! With id: " + readerId));
 
-        var bookIsbn = bookDtoRequest.isbn();
-        Book existingBookInDatabase = bookRepository.findByIsbn(bookIsbn);
+        Book existingBookInDatabase = bookRepository.findByIsbn(bookDtoRequest.isbn());
+
+        ReaderBook readerBookToAdd;
 
         if (existingBookInDatabase == null) {
             Book newBookEntity = bookMapper.toEntity(bookDtoRequest);
@@ -141,22 +134,80 @@ public class BookService {
             newBookEntity.setCategory(categoryService.findOrCreateCategory(bookDtoRequest.categoryName()));
             newBookEntity.setPublisher(publisherService.findOrCreatePublisher(bookDtoRequest.publisherName()));
             Book savedBook = bookRepository.save(newBookEntity);
-            buildRelationshipWithBook(neededReader, savedBook);
-            readerRepository.save(neededReader);
+
+            readerBookToAdd = new ReaderBook(reader, savedBook);
+            readerBookRepository.save(readerBookToAdd);
+
+            reader.getReaderBooks().add(readerBookToAdd);
+            readerRepository.save(reader);
+
             return "We've successfully created the book and added it to your books.";
         } else {
-            boolean alreadyLinked = neededReader.getReaderBooks().stream()
-                    .anyMatch(rb -> rb.getBook().getId().equals(existingBookInDatabase.getId()));
-            if (alreadyLinked) {
-                throw new ExistsException("You already have this book!");
+            var readerBookToAddId = ReaderBook.createCompositeKey(reader.getId(), existingBookInDatabase.getId());
+            boolean isBookExistsInReaderCollection = readerBookRepository.existsById(readerBookToAddId);
+            if (isBookExistsInReaderCollection) {
+                throw new ExistsException("You already have this book in your collection!");
             }
-            buildRelationshipWithBook(neededReader, existingBookInDatabase);
-            readerRepository.save(neededReader);
+
+            readerBookToAdd = new ReaderBook(reader, existingBookInDatabase);
+            readerBookRepository.save(readerBookToAdd);
+
+            reader.getReaderBooks().add(readerBookToAdd);
+            readerRepository.save(reader);
+
             return "This book already exists in the database. We've added it to your books.";
         }
     }
 
-    public String deleteBook(Long readerId, Long bookId) {
+    public ReaderBookDto updateReaderBook(Long readerId, Long bookId, ReaderBookUpdateDto readerBookUpdateDto) {
+        Long authenticatedReaderId = SecurityCheck.getAuthenticatedUserId();
+
+        if (!authenticatedReaderId.equals(readerId)) {
+            throw new AccessDeniedException("You cannot access this resource.");
+        }
+
+        // Still check to avoid NullPointerException if reader was deleted after token issued (Always prefer robustness over optimism)
+        readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
+                "This reader has been deleted from the database! With id: " + readerId));
+
+        var readerBookToUpdateId = ReaderBook.createCompositeKey(readerId, bookId);
+
+        var readerBookToUpdate = readerBookRepository.findById(readerBookToUpdateId).orElseThrow(() -> new NotFoundException(
+                "Book not found in your collection."
+        ));
+
+        boolean isStatusValid = StatusValidator.validateStatus(readerBookUpdateDto.status());
+
+        if (!isStatusValid) {
+            throw new InvalidException("Enter a valid status (UNREAD, READING, READ)! Can be lowercase.");
+        }
+
+        readerBookToUpdate.setStatus(readerBookUpdateDto.status());
+        readerBookToUpdate.setLeftOffPage(readerBookUpdateDto.leftOffPage());
+
+        var updatedReaderBook = readerBookRepository.save(readerBookToUpdate);
+
+        var theBookItself = updatedReaderBook.getBook();
+
+        return new ReaderBookDto(theBookItself.getId(),
+                                 theBookItself.getTitle(),
+                                 theBookItself.getSubtitle(),
+                                 theBookItself.getDescription(),
+                                 theBookItself.getIsbn(),
+                                 theBookItself.getPagesCount(),
+                                 theBookItself.getImageLink(),
+                                 theBookItself.getPrintingType(),
+                                 theBookItself.getPublishingYear(),
+                                 theBookItself.getAuthor().getFullName(),
+                                 theBookItself.getCategory().getName(),
+                                 theBookItself.getPublisher().getName(),
+                                 updatedReaderBook.getStatus(),
+                                 updatedReaderBook.getAddingDate(),
+                                 updatedReaderBook.getLeftOffPage()
+        );
+    }
+
+    public String deleteReaderBook(Long readerId, Long bookId) {
         Long authenticatedReaderId = SecurityCheck.getAuthenticatedUserId();
 
         if (!authenticatedReaderId.equals(readerId)) {
@@ -164,31 +215,26 @@ public class BookService {
         }
 
         // in case it is authenticated but was deleted accidentally from the database
-        Reader neededReader = readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
+        Reader reader = readerRepository.findById(readerId).orElseThrow(() -> new NotFoundException(
                 "Reader not found! With id: " + readerId));
 
-        Book bookToRemove = neededReader.getReaderBooks().stream()
-                .filter(rb -> rb.getBook().getId().equals(bookId))
-                .findFirst()
-                .orElseThrow(() -> new NotFoundException("Book not found in your collection.")).getBook();
+        ReaderBookId readerBookToDeleteId = ReaderBook.createCompositeKey(readerId, bookId);
 
-        removeRelationshipWithBook(neededReader, bookToRemove);
-        readerRepository.save(neededReader);
+        var readerBookToDelete = readerBookRepository.findById(readerBookToDeleteId).orElseThrow(() -> new NotFoundException(
+                "Book not found in your collection."));
+        readerBookRepository.delete(readerBookToDelete);
+
+
+        Book bookToDeleteIfNoReaders = readerBookToDelete.getBook();
+
+        reader.getReaderBooks().removeIf(rb -> rb.getBook().equals(bookToDeleteIfNoReaders));
+        readerRepository.save(reader);
 
         // Optional: if no other readers have the book, delete it
-        if (readerBookRepository.countReadersByBookId(bookToRemove.getId()) == 0) {
-            bookRepository.delete(bookToRemove);
+        if (readerBookRepository.countReadersByBookId(bookToDeleteIfNoReaders.getId()) == 0) {
+            bookRepository.delete(bookToDeleteIfNoReaders);
         }
 
         return "Book deleted successfully.";
-    }
-
-    private void buildRelationshipWithBook(Reader reader, Book book) {
-        ReaderBook readerBook = new ReaderBook(reader, book);
-        reader.getReaderBooks().add(readerBook);
-    }
-
-    public void removeRelationshipWithBook(Reader reader, Book book) {
-        reader.getReaderBooks().removeIf(rb -> rb.getBook().equals(book));
     }
 }

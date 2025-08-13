@@ -1,6 +1,7 @@
 package dev.bakr.library_manager.controller;
 
 import dev.bakr.library_manager.requestDtos.BookDtoRequest;
+import dev.bakr.library_manager.requestDtos.ReaderBookUpdateDto;
 import dev.bakr.library_manager.responses.ReaderBookDto;
 import dev.bakr.library_manager.service.BookService;
 import jakarta.validation.Valid;
@@ -22,27 +23,37 @@ public class BookController {
     }
 
     @GetMapping(path = "/readers/{readerId}/books")
-    public ResponseEntity<List<ReaderBookDto>> getBooks(@PathVariable Long readerId) {
-        List<ReaderBookDto> allBooks = bookService.getBooks(readerId);
+    public ResponseEntity<List<ReaderBookDto>> getReaderBooks(@PathVariable Long readerId) {
+        List<ReaderBookDto> allBooks = bookService.getReaderBooks(readerId);
         return ResponseEntity.ok(allBooks);
     }
 
     @GetMapping(path = "/readers/{readerId}/books/{bookId}")
-    public ResponseEntity<ReaderBookDto> getBook(@PathVariable Long readerId, @PathVariable Long bookId) {
-        ReaderBookDto readingCopy = bookService.getBook(readerId, bookId);  // this might throw BookNotFoundException
+    public ResponseEntity<ReaderBookDto> getReaderBook(@PathVariable Long readerId, @PathVariable Long bookId) {
+        ReaderBookDto readingCopy = bookService.getReaderBook(readerId,
+                                                              bookId
+        );  // this might throw BookNotFoundException
         return ResponseEntity.status(HttpStatus.OK).body(readingCopy);
     }
 
     @PostMapping(path = "/readers/{readerId}/books")
-    public ResponseEntity<String> addBook(@PathVariable Long readerId,
+    public ResponseEntity<String> addReaderBook(@PathVariable Long readerId,
             @Valid @RequestBody BookDtoRequest bookDtoRequest) {
-        String newBookMessage = bookService.addBook(readerId, bookDtoRequest);
+        String newBookMessage = bookService.addReaderBook(readerId, bookDtoRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(newBookMessage);
     }
 
+    @PutMapping(path = "/readers/{readerId}/books/{bookId}")
+    public ResponseEntity<ReaderBookDto> updateReaderBook(@PathVariable Long readerId,
+            @PathVariable Long bookId,
+            @RequestBody ReaderBookUpdateDto readerBookUpdateDto) {
+        ReaderBookDto updatedReadingCopy = bookService.updateReaderBook(readerId, bookId, readerBookUpdateDto);
+        return ResponseEntity.ok(updatedReadingCopy);
+    }
+
     @DeleteMapping(path = "/readers/{readerId}/books/{bookId}")
-    public ResponseEntity<String> deleteBook(@PathVariable Long readerId, @PathVariable Long bookId) {
-        String deletedBookMessage = bookService.deleteBook(readerId, bookId);
+    public ResponseEntity<String> deleteReaderBook(@PathVariable Long readerId, @PathVariable Long bookId) {
+        String deletedBookMessage = bookService.deleteReaderBook(readerId, bookId);
         return ResponseEntity.ok(deletedBookMessage);
     }
 }

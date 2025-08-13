@@ -17,6 +17,7 @@ Because we're going to store data based on the relationship between the book and
 @NoArgsConstructor
 public class ReaderBook {
     @EmbeddedId
+//    @Column(name = "reader_book_id")
     private ReaderBookId id; // composite PK (reader_id + book_id)
 
     /* Many records (rows) of this entity can be associated with one row in the Reader table. One reader entity will
@@ -49,11 +50,15 @@ public class ReaderBook {
 
     public ReaderBook(Reader reader, Book book) {
         // creating the composite PK (allowing @MapsId to extract from it)
-        this.id = new ReaderBookId(reader.getId(), book.getId());
+        this.id = createCompositeKey(reader.getId(), book.getId());
         this.reader = reader;
         this.book = book;
         this.addingDate = LocalDate.now();
         this.status = "unread";
         this.leftOffPage = null;
+    }
+
+    public static ReaderBookId createCompositeKey(Long readerId, Long bookId) {
+        return new ReaderBookId(readerId, bookId);
     }
 }

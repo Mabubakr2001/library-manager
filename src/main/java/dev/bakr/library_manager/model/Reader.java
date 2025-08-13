@@ -46,7 +46,7 @@ public class Reader {
     // cascade = CascadeType.All : Any operation you perform on the parent (Reader) will also apply to the children (ReaderBook)
     /* orphanRemoval = true : If you remove an element from the readerBooks list in memory and then save the Reader, Hibernate
     will also delete that ReaderBook row from the database. */
-    @OneToMany(mappedBy = "reader", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "reader")
     private List<ReaderBook> readerBooks = new ArrayList<>();
 
     @Override
