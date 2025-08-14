@@ -46,7 +46,7 @@ public class BookController {
     @PutMapping(path = "/readers/{readerId}/books/{bookId}")
     public ResponseEntity<ReaderBookDto> updateReaderBook(@PathVariable Long readerId,
             @PathVariable Long bookId,
-            @RequestBody ReaderBookUpdateDto readerBookUpdateDto) {
+            @Valid @RequestBody ReaderBookUpdateDto readerBookUpdateDto) {
         ReaderBookDto updatedReadingCopy = bookService.updateReaderBook(readerId, bookId, readerBookUpdateDto);
         return ResponseEntity.ok(updatedReadingCopy);
     }

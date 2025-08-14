@@ -8,19 +8,25 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "quotes")
+@Table(name = "words")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Quote {
+public class Word {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "quote_id", updatable = false)
+    @Column(name = "word_id", updatable = false)
     private Long id;
 
-    @Column(name = "text", nullable = false, length = 2000)
-    private String text;
+    @Column(name = "word_content", nullable = false, length = 45)
+    private String wordContent;
+
+    @Column(name = "translation", nullable = false)
+    private String translation;
+
+    @Column(name = "related_sentence", nullable = false, length = 2000)
+    private String relatedSentence;
 
     @Column(name = "page_number", nullable = false)
     private Integer pageNumber;
@@ -35,9 +41,11 @@ public class Quote {
 
     @Override
     public String toString() {
-        return "Quote{" +
+        return "Word{" +
                 "id=" + id +
-                ", text='" + text + '\'' +
+                ", wordContent='" + wordContent + '\'' +
+                ", translation='" + translation + '\'' +
+                ", relatedSentence='" + relatedSentence + '\'' +
                 ", pageNumber=" + pageNumber +
                 ", readerBook=" + readerBook +
                 '}';

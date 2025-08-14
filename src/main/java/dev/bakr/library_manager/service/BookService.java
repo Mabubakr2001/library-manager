@@ -2,7 +2,7 @@ package dev.bakr.library_manager.service;
 
 import dev.bakr.library_manager.exceptions.AccessDeniedException;
 import dev.bakr.library_manager.exceptions.ExistsException;
-import dev.bakr.library_manager.exceptions.InvalidException;
+import dev.bakr.library_manager.exceptions.InvalidInputsException;
 import dev.bakr.library_manager.exceptions.NotFoundException;
 import dev.bakr.library_manager.mappers.BookMapper;
 import dev.bakr.library_manager.model.Book;
@@ -73,7 +73,9 @@ public class BookService {
                                      theBookItself.getPublisher().getName(),
                                      readerBook.getStatus(),
                                      readerBook.getAddingDate(),
-                                     readerBook.getLeftOffPage()
+                                     readerBook.getLeftOffPage(),
+                                     readerBook.getQuotes(),
+                                     readerBook.getWords()
             );
         }).toList();
     }
@@ -109,7 +111,9 @@ public class BookService {
                                  theBookItself.getPublisher().getName(),
                                  readerBookToGet.getStatus(),
                                  readerBookToGet.getAddingDate(),
-                                 readerBookToGet.getLeftOffPage()
+                                 readerBookToGet.getLeftOffPage(),
+                                 readerBookToGet.getQuotes(),
+                                 readerBookToGet.getWords()
         );
     }
 
@@ -179,7 +183,7 @@ public class BookService {
         boolean isStatusValid = StatusValidator.validateStatus(readerBookUpdateDto.status());
 
         if (!isStatusValid) {
-            throw new InvalidException("Enter a valid status (UNREAD, READING, READ)! Can be lowercase.");
+            throw new InvalidInputsException("Enter a valid status (UNREAD, READING, READ)! Can be lowercase.");
         }
 
         readerBookToUpdate.setStatus(readerBookUpdateDto.status());
@@ -203,7 +207,9 @@ public class BookService {
                                  theBookItself.getPublisher().getName(),
                                  updatedReaderBook.getStatus(),
                                  updatedReaderBook.getAddingDate(),
-                                 updatedReaderBook.getLeftOffPage()
+                                 updatedReaderBook.getLeftOffPage(),
+                                 updatedReaderBook.getQuotes(),
+                                 updatedReaderBook.getWords()
         );
     }
 

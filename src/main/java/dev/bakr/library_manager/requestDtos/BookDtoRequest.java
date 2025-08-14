@@ -13,7 +13,7 @@ public record BookDtoRequest(@NotBlank(message = "Title is required") String tit
         @NotNull(message = "Pages count is required")
         @Min(value = 1, message = "Pages count must be at least 1")
         Integer pagesCount,
-        @NotNull(message = "Image link is required")
+        @NotBlank(message = "Image link is required")
         String imageLink,
         String printingType,
         Integer publishingYear,

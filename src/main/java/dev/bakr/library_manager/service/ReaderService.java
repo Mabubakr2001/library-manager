@@ -1,7 +1,7 @@
 package dev.bakr.library_manager.service;
 
 import dev.bakr.library_manager.exceptions.ExistsException;
-import dev.bakr.library_manager.exceptions.InvalidException;
+import dev.bakr.library_manager.exceptions.InvalidInputsException;
 import dev.bakr.library_manager.exceptions.NotFoundException;
 import dev.bakr.library_manager.mappers.ReaderMapper;
 import dev.bakr.library_manager.model.Reader;
@@ -16,6 +16,7 @@ import jakarta.mail.MessagingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -80,11 +81,11 @@ public class ReaderService {
         }
 
         if (neededReader.getVerificationExpiration().isBefore(LocalDateTime.now())) {
-            throw new InvalidException("The verification code has expired!");
+            throw new InvalidInputsException("The verification code has expired!");
         }
 
         if (!neededReader.getVerificationCode().equals(verifyReaderDtoRequest.verificationCode())) {
-            throw new InvalidException("Invalid verification code!");
+            throw new InvalidInputsException("Invalid verification code!");
         }
 
         neededReader.setIsEnabled(true);
@@ -97,21 +98,25 @@ public class ReaderService {
     }
 
     public LoginReaderDtoResponse loginReader(LoginReaderDtoRequest loginReaderDtoRequest) {
-        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                loginReaderDtoRequest.username(),
-                loginReaderDtoRequest.password()
-        ));
+        try {
+            Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    loginReaderDtoRequest.username(),
+                    loginReaderDtoRequest.password()
+            ));
 
-        if (!authentication.isAuthenticated()) {
-            return null;
+            if (!authentication.isAuthenticated()) {
+                return null;
+            }
+
+            String jwtToken = jwtService.generateToken(loginReaderDtoRequest);
+            Long jwtExpirationMs = jwtService.getExpirationTime();
+            String jwtExpirationText = "In " + String.valueOf(jwtService.getExpirationTime() / (1000 * 60 * 60)) + " Hours";
+
+
+            return new LoginReaderDtoResponse(jwtToken, jwtExpirationMs, jwtExpirationText);
+        } catch (BadCredentialsException e) {
+            throw new InvalidInputsException("Invalid credentials! Please check your username and password.");
         }
-
-        String jwtToken = jwtService.generateToken(loginReaderDtoRequest);
-        Long jwtExpirationMs = jwtService.getExpirationTime();
-        String jwtExpirationText = "In " + String.valueOf(jwtService.getExpirationTime() / (1000 * 60 * 60)) + " Hours";
-
-
-        return new LoginReaderDtoResponse(jwtToken, jwtExpirationMs, jwtExpirationText);
     }
 
     public void sendOTAC(Reader reader) {
@@ -129,7 +134,7 @@ public class ReaderService {
             throw new NotFoundException("You are trying to resend the OTAC to a user who doesn't even exist!");
         }
         if (neededReader.getIsEnabled()) {
-            throw new InvalidException("You are trying to resend the OTAC to a user who is already verified!");
+            throw new InvalidInputsException("You are trying to resend the OTAC to a user who is already verified!");
         }
 
         String newVerificationOTAC = GenerateVerificationCode.generateCode();

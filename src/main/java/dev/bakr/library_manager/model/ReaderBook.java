@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /* This entity class makes the relationship between the book and reader instead of just using the generic join table.
 Because we're going to store data based on the relationship between the book and the reader. The entity has two many-To
@@ -47,6 +49,11 @@ public class ReaderBook {
     @Column(name = "left_off_page")
     private Integer leftOffPage;
 
+    @OneToMany(mappedBy = "readerBook")
+    private List<Quote> quotes;
+
+    @OneToMany(mappedBy = "readerBook")
+    private List<Word> words;
 
     public ReaderBook(Reader reader, Book book) {
         // creating the composite PK (allowing @MapsId to extract from it)
@@ -56,6 +63,8 @@ public class ReaderBook {
         this.addingDate = LocalDate.now();
         this.status = "unread";
         this.leftOffPage = null;
+        this.quotes = new ArrayList<>();
+        this.words = new ArrayList<>();
     }
 
     public static ReaderBookId createCompositeKey(Long readerId, Long bookId) {

@@ -2,7 +2,7 @@ package dev.bakr.library_manager;
 
 import dev.bakr.library_manager.exceptions.AccessDeniedException;
 import dev.bakr.library_manager.exceptions.ExistsException;
-import dev.bakr.library_manager.exceptions.InvalidException;
+import dev.bakr.library_manager.exceptions.InvalidInputsException;
 import dev.bakr.library_manager.exceptions.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,14 +18,14 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(InvalidException.class)
-    public ResponseEntity<ApiErrorDto> handleInvalid(InvalidException ex) {
+    @ExceptionHandler(InvalidInputsException.class)
+    public ResponseEntity<ApiErrorDto> handleInvalid(InvalidInputsException ex) {
         ApiErrorDto error = new ApiErrorDto(
                 ex.getMessage(),
-                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.UNAUTHORIZED.value(),
                 LocalDateTime.now()
         );
-        return ResponseEntity.badRequest().body(error);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
     @ExceptionHandler(NotFoundException.class)
